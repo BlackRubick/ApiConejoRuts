@@ -15,7 +15,7 @@ from sqlalchemy.testing import db
 from starlette.middleware.cors import CORSMiddleware
 
 # Configuración de la base de datos
-SQLALCHEMY_DATABASE_URL = "mysql+pymysql://root:0000@localhost/dbConejoRuts"
+SQLALCHEMY_DATABASE_URL = "mysql+pymysql://root:cuco2017localhost/dbConejoRuts"
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -118,6 +118,15 @@ def delete_route_by_name(db: Session, title: str):
     db.commit()
     return route
 
+def update_route_title(db: Session, old_title: str, new_title: str):
+    route = get_route_by_name(db, old_title)
+    if not route:
+        raise HTTPException(status_code=404, detail="Route not found")
+    route.title = new_title
+    db.commit()
+    db.refresh(route)
+    return route
+
 # Crear la aplicación FastAPI
 app = FastAPI()
 
@@ -189,7 +198,6 @@ def create_route(route: RouteCreate, db: Session = Depends(get_db)):
 
     return db_route  # Devolver correctamente RouteDB con la lista de path
 
-
 @app.delete("/routes/{route_title}")
 def delete_route(route_title: str, db: Session = Depends(get_db)):
     try:
@@ -203,6 +211,11 @@ def delete_route(route_title: str, db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/routes/{old_title}", response_model=RouteDB)
+def update_route(old_title: str, new_title: str, db: Session = Depends(get_db)):
+    updated_route = update_route_title(db, old_title, new_title)
+    return updated_route
 
 @app.get("/route-names", response_model=List[str])
 def get_route_names(db: Session = Depends(get_db)):
